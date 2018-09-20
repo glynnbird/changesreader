@@ -99,7 +99,7 @@ class ChangesReader {
         }
 
         // stop on empty batch or small batch
-        if (self.stopOnEmptyChanges && typeof data.results !== 'undefined' && data.results.length < self.batchSize) {
+        if (self.stopOnEmptyChanges && data && typeof data.results !== 'undefined' && data.results.length < self.batchSize) {
           // emit 'end' event if we are in 'get' mode
           self.ee.emit('end')
           self.continue = false
