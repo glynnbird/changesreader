@@ -82,12 +82,23 @@ The `change` event delivers a change object that looks like this:
 
 ```js
 {
-	id: '1526458621285',
-	changes: [{
-		rev: '1-bdbb36882766a49dda4e967b68ec0e48'
-	}]
+	"seq": "8-g1AAAAYIeJyt1M9NwzAUBnALKiFOdAO4gpRix3X",
+	"id": "2451be085772a9e588c26fb668e1cc52",
+	"changes": [{
+		"rev": "4-061b768b6c0b6efe1bad425067986587"
+	}],
+	"doc": {
+		"_id": "2451be085772a9e588c26fb668e1cc52",
+		"_rev": "4-061b768b6c0b6efe1bad425067986587",
+		"a": 3
+	}
 }
 ```
+
+N.B
+
+- `doc` is only present if `includeDocs:true` is supplied
+- `seq` is not present for every change
 
 The `id` is the unique identifier of the document that changed and the `changes` array contains the document revision tokens that were written to the database.
 
