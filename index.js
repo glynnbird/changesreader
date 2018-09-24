@@ -52,15 +52,7 @@ class ChangesReader {
 
     // handle overidden defaults
     opts = opts || {}
-    if (opts.batchSize) {
-      self.batchSize = opts.batchSize
-    }
-    if (opts.since) {
-      self.since = opts.since
-    }
-    if (opts.includeDocs) {
-      self.includeDocs = true
-    }
+    Object.assign(self, opts)
 
     // monitor the changes feed forever
     async.doWhilst((next) => {
@@ -73,7 +65,6 @@ class ChangesReader {
           timeout: self.timeout,
           since: self.since,
           limit: self.batchSize,
-          heartbeat: self.heartbeat,
           seq_interval: self.batchSize,
           include_docs: self.includeDocs
         }
