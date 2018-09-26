@@ -131,6 +131,35 @@ class ChangesReader {
     this.stopOnEmptyChanges = true
     return this.start(opts)
   }
+
+  // called to spool through changes to "now" in one long HTTP request
+  spool (opts) {
+    const liner = require('./lib/liner.js')
+    const changeProcessor = require('./lib/changeprocessor.js')
+    const self = this
+    self.setDefaults()
+    opts = opts || {}
+    Object.assign(self, opts)
+    const req = {
+      method: 'get',
+      path: encodeURIComponent(self.db) + '/_changes',
+      qs: {
+        since: self.since,
+        include_docs: self.includeDocs
+      },
+      stream: true
+    }
+    self.request(req)
+      .pipe(liner())
+      .pipe(changeProcessor(self.ee, self.batchSize))
+      .on('finish', () => {
+        self.ee.emit('end')
+      })
+      .on('error', (e) => {
+        self.ee.emit('error', e)
+      })
+    return self.ee
+  }
 }
 
 module.exports = ChangesReader

@@ -5,6 +5,7 @@ The *ChangesReader* object allows a CouchDB databases's changes feed to be consu
 1. `start()` - to listen to changes indefinitely.
 2. `get()` - to listen to changes until the end of the changes feed is reached.
 3. `stop()` - to stop listening to changes.
+4. `spool()` - listen to changes in one long HTTP request. (`start`/`get` make repeated round trips) - spool is faster but less reliable.
 
 The `ChangesReader` library hides the myriad of options that the CouchDB changes API offers and exposes only the features you need to build a resilient, resumable change listener.
 
@@ -52,6 +53,18 @@ changesReader.get().on('change', (c) => {
 });
 ```
 
+## Listening to the changes feed in one HTTP call
+
+Another option is  `spool()` which churns through the changes feed in one go. It only emits `batch` events and an `end` event when it finishes.
+
+```js
+changesReader.spool().on('batch', (b) => {
+  console.log('a batch of', b.length, 'changes has arrived');
+}).on('end', () => {
+  console.log('changes feed monitoring has stopped');
+});
+```
+
 ## Options
 
 | Parameter | Description                                                                                                                                                                             | Default value | e.g.                            |   |
@@ -68,9 +81,9 @@ The objects returned by `changesReader.start()` and `changesReader.get()` emit t
 
 | Event  | Description                                                                                                                                                               | Data                       |   |
 |--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------|---|
-| change | Each detected change is emitted individually.                                                                                                                             | A change object            |   |
+| change | Each detected change is emitted individually. Only available in `get`/`start` modes.                                                                                                                          | A change object            |   |
 | batch  | Each batch of changes is emitted in bulk in quantities up to `batchSize`.                                                                                                                              | An array of change objects |   |
-| seq    | Each new sequence token (per HTTP request). This token can be passed into `ChangesReader` as the `since` parameter to resume changes feed consumption from a known point. | String                     |   |
+| seq    | Each new sequence token (per HTTP request). This token can be passed into `ChangesReader` as the `since` parameter to resume changes feed consumption from a known point. Only available in `get`/`start` modes. | String                     |   |
 | error  | On a fatal error, a descriptive object is returned and change consumption stops.                                                                                         | Error object               |   |
 | end    | Emitted when the end of the changes feed is reached. `ChangesReader.get()` mode only,                                                                                     | Nothing                    |   |
 
