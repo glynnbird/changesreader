@@ -131,6 +131,27 @@ describe('ChangesReader', function () {
     })
   })
 
+  describe('spooling', function () {
+    it('spooling changes', function (done) {
+      var changeURL = `/${DBNAME}/_changes`
+      var fs = require('fs')
+      var reply = fs.readFileSync('./test/changes.json')
+      var replyObj = JSON.parse(reply)
+      nock(SERVER)
+        .get(changeURL)
+        .query({ since: '0', include_docs: false })
+        .reply(200, reply)
+      const nano = Nano(URL)
+      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const cr = changesReader.spool({ since: 0 })
+      cr.on('batch', function (batch) {
+        assert.strictEqual(JSON.stringify(batch), JSON.stringify(replyObj.results))
+      }).on('end', () => {
+        done()
+      })
+    })
+  })
+
   describe('parameters', function () {
     it('batchSize', function (done) {
       var changeURL = `/${DBNAME}/_changes`
