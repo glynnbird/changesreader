@@ -65,7 +65,6 @@ class ChangesReader {
           timeout: self.timeout,
           since: self.since,
           limit: self.batchSize,
-          seq_interval: self.batchSize,
           include_docs: self.includeDocs
         }
       }
