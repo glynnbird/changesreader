@@ -146,7 +146,8 @@ describe('ChangesReader', function () {
       const cr = changesReader.spool({ since: 0 })
       cr.on('batch', function (batch) {
         assert.strictEqual(JSON.stringify(batch), JSON.stringify(replyObj.results))
-      }).on('end', () => {
+      }).on('end', (lastSeq) => {
+        assert.strictEqual(lastSeq, replyObj['last_seq'])
         done()
       })
     })
@@ -227,10 +228,10 @@ describe('ChangesReader', function () {
       var batch1 = []
       var batch2 = []
       for (var i = 0; i < batchSize; i++) {
-        batch1.push({ seq: null, id: 'a' + i, changes: ['1-1'] })
+        batch1.push({ seq: (i + 1) + '-0', id: 'a' + i, changes: ['1-1'] })
       }
       for (i = 0; i < 5; i++) {
-        batch2.push({ seq: null, id: 'b' + i, changes: ['1-1'] })
+        batch2.push({ seq: (45 + i + 1) + '-0', id: 'b' + i, changes: ['1-1'] })
       }
       nock(SERVER)
         .get(changeURL)
@@ -250,7 +251,8 @@ describe('ChangesReader', function () {
         } else {
           assert.strictEqual(seq, '50-0')
         }
-      }).on('end', function () {
+      }).on('end', function (lastSeq) {
+        assert.strictEqual(lastSeq, '50-0')
         done()
       })
     })

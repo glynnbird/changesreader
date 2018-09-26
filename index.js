@@ -91,7 +91,7 @@ class ChangesReader {
         // stop on empty batch or small batch
         if (self.stopOnEmptyChanges && data && typeof data.results !== 'undefined' && data.results.length < self.batchSize) {
           // emit 'end' event if we are in 'get' mode
-          self.ee.emit('end')
+          self.ee.emit('end', self.since)
           self.continue = false
         }
 
@@ -148,11 +148,13 @@ class ChangesReader {
       },
       stream: true
     }
+    const lin = liner()
+    const cp = changeProcessor(self.ee, self.batchSize)
     self.request(req)
-      .pipe(liner())
-      .pipe(changeProcessor(self.ee, self.batchSize))
-      .on('finish', () => {
-        self.ee.emit('end')
+      .pipe(lin)
+      .pipe(cp)
+      .on('finish', (lastSeq) => {
+        self.ee.emit('end', cp.lastSeq)
       })
       .on('error', (e) => {
         self.ee.emit('error', e)

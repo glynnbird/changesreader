@@ -2,10 +2,10 @@
 
 The *ChangesReader* object allows a CouchDB databases's changes feed to be consumed across multiple HTTP requests. Once started, the *ChangesReader* will continuously poll the server for changes, handle network errors & retries and feed you with database changes as and when they arrive. The *ChangesReader* library has two modes of operation:
 
-1. `start()` - to listen to changes indefinitely.
-2. `get()` - to listen to changes until the end of the changes feed is reached.
-3. `stop()` - to stop listening to changes.
-4. `spool()` - listen to changes in one long HTTP request. (`start`/`get` make repeated round trips) - spool is faster but less reliable.
+1. `start()` - to listen to changes indefinitely by repeated "long poll" requests
+2. `get()` - to listen to changes until the end of the changes feed is reached, by repeated "long poll" requests. The 'end' event will supply the last sequence token identified.
+3. `stop()` - to stop listening to changes - used in 'start/get' mode to stop further HTTP requests.
+4. `spool()` - listen to changes in one long HTTP request. (as opposed to repeated round trips) - spool is faster but less reliable.
 
 The `ChangesReader` library hides the myriad of options that the CouchDB changes API offers and exposes only the features you need to build a resilient, resumable change listener.
 
