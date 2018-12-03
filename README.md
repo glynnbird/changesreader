@@ -53,6 +53,28 @@ changesReader.get().on('change', (c) => {
 });
 ```
 
+## Listening for changes with `wait=true`
+
+By supplying `wait:true` in the options to `get`, then your code can rate-limit the rate of changes feed polling, by only calling the `on('batch')` callback when ready.
+
+```js
+changesReader.get().on('change', (c) => {
+  console.log('change', c);
+}).on('batch', (b, callback) => {
+  console.log('a batch of', b.length, 'changes has arrived');
+  // callbackup when you are ready to poll for new changes
+  callback()
+}).on('seq', (s) => {
+  console.log('sequence token', s);
+}).on('error', (e) => {
+  console.error('error', e);
+}).on('end', () => {
+  console.log('changes feed monitoring has stopped');
+});
+```
+
+This allows you to process some asynchronous work safely without building up a back-log of unprocessed data.
+
 ## Listening to the changes feed in one HTTP call
 
 Another option is  `spool()` which churns through the changes feed in one go. It only emits `batch` events and an `end` event when it finishes.
@@ -72,6 +94,7 @@ changesReader.spool().on('batch', (b) => {
 | batchSize | The maximum number of changes to ask CouchDB for per HTTP request. This is the maximum number of changes you will receive in a `batch` event. | 100           | 500                             |   |
 | since     | The position in the changes feed to start from where `0` means the beginning of time, `now` means the current position or a string token indicates a fixed position in the changes feed | now           | 390768-g1AAAAGveJzLYWBgYMlgTmGQ |   |
 | includeDocs | Whether to include document bodies or not | false | e.g. true |
+| wait | Got `get`/`start` mode, only processes requests the next batch of changes when the calling code indicates it's ready with a callback  | false | e.g. true |
 
 To consume the changes feed of a large database from the beginning, you may want to increase the `batchSize` e.g. `{ batchSize: 10000, since:0}`. 
 

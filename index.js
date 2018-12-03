@@ -42,6 +42,7 @@ class ChangesReader {
   // - since - the the sequence token to start from (defaults to 'now')
   start (opts) {
     const self = this
+    console.log(opts)
 
     // if we're already listening for changes
     if (self.started) {
@@ -79,7 +80,15 @@ class ChangesReader {
           }
 
           // emit 'batch' event
-          self.ee.emit('batch', data.results)
+          if (opts.wait) {
+            console.log('wait mode')
+            self.ee.emit('batch', data.results, () => {
+              next()
+            })
+          } else {
+            self.ee.emit('batch', data.results)
+            next()
+          }
         }
 
         // update the since state
@@ -94,8 +103,6 @@ class ChangesReader {
           self.ee.emit('end', self.since)
           self.continue = false
         }
-
-        next()
       }).catch((err) => {
         // error (wrong password, bad since value etc)
         self.ee.emit('error', err)
