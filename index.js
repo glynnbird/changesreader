@@ -28,6 +28,7 @@ class ChangesReader {
     this.timeout = 60000
     this.heartbeat = 5000
     this.started = false
+    this.wait = false
     this.stopOnEmptyChanges = false // whether to stop polling if we get an empty set of changes back
     this.continue = true // whether to poll again
   }
@@ -77,9 +78,6 @@ class ChangesReader {
           for (let i in data.results) {
             self.ee.emit('change', data.results[i])
           }
-
-          // emit 'batch' event
-          self.ee.emit('batch', data.results)
         }
 
         // update the since state
@@ -95,7 +93,23 @@ class ChangesReader {
           self.continue = false
         }
 
-        next()
+        // batch event
+      
+        // emit 'batch' event
+        if (self.wait) {
+          if (data && data.results && data.results.length > 0) {
+            self.ee.emit('batch', data.results, () => {
+              next()
+            })
+          } else {
+            next()
+          }
+        } else {
+          if (data && data.results && data.results.length > 0) {
+            self.ee.emit('batch', data.results)
+          }
+          next()
+        }
       }).catch((err) => {
         // error (wrong password, bad since value etc)
         self.ee.emit('error', err)
