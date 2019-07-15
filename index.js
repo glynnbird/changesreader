@@ -31,6 +31,7 @@ class ChangesReader {
     this.wait = false
     this.stopOnEmptyChanges = false // whether to stop polling if we get an empty set of changes back
     this.continue = true // whether to poll again
+    this.qs = {} // extra querystring parameters
   }
 
   // prevent another poll happening
@@ -69,13 +70,14 @@ class ChangesReader {
           include_docs: self.includeDocs
         }
       }
+      Object.assign(req.qs, opts.qs)
 
       // make HTTP request to get up to batchSize changes from the feed
       self.request(req).then((data) => {
         // and we have some results
         if (data && data.results && data.results.length > 0) {
           // emit 'change' events
-          for (let i in data.results) {
+          for (const i in data.results) {
             self.ee.emit('change', data.results[i])
           }
         }
@@ -94,7 +96,7 @@ class ChangesReader {
         }
 
         // batch event
-      
+
         // emit 'batch' event
         if (self.wait) {
           if (data && data.results && data.results.length > 0) {
