@@ -104,24 +104,25 @@ describe('ChangesReader', function () {
     })
 
     it('multiple polls', function (done) {
+      this.timeout(10000)
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: '1-0', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: '1-0', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '2-0', pending: 0 })
         .get(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
       const changesReader = new ChangesReader(DBNAME, nano.request)
-      const cr = changesReader.start()
+      const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         // ensure we get a change on the third poll
         assert.deepStrictEqual(c, change)
@@ -330,24 +331,25 @@ describe('ChangesReader', function () {
 
   describe('survival', function () {
     it('survives 500', function (done) {
+      this.timeout(10000)
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: '1-0', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(500)
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: '1-0', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '2-0', pending: 0 })
         .get(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
       const changesReader = new ChangesReader(DBNAME, nano.request)
-      const cr = changesReader.start()
+      const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         // ensure we get a change on the third poll
         assert.deepStrictEqual(c, change)
@@ -359,24 +361,25 @@ describe('ChangesReader', function () {
     })
 
     it('survives 429', function (done) {
+      this.timeout(10000)
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: '1-0', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(429, { error: 'too_many_requests', reason: 'You\'ve exceeded your current limit of x requests per second for x class. Please try later.', class: 'x', rate: 1 })
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: '1-0', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '2-0', pending: 0 })
         .get(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
       const changesReader = new ChangesReader(DBNAME, nano.request)
-      const cr = changesReader.start()
+      const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         // ensure we get a change on the third poll
         assert.deepStrictEqual(c, change)
@@ -388,21 +391,22 @@ describe('ChangesReader', function () {
     })
 
     it('survives malformed JSON', function (done) {
+      this.timeout(10000)
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, '{ results: [], last_seq: "1-0", pending: 0') // missing bracket } - malformed JSON
         .get(changeURL)
-        .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
+        .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '1-0', pending: 0 })
         .get(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
       const changesReader = new ChangesReader(DBNAME, nano.request)
-      const cr = changesReader.start()
+      const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         assert.deepStrictEqual(c, change)
         changesReader.stop()

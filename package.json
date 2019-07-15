@@ -1,10 +1,10 @@
 {
   "name": "changesreader",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Simple CouchDB changes feed follower",
   "main": "index.js",
   "scripts": {
-    "test": "standard; mocha",
+    "test": "standard; mocha --exit",
     "standard": "standard --fix"
   },
   "repository": {

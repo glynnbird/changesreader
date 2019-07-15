@@ -1,6 +1,12 @@
 const EventEmitter = require('events').EventEmitter
 const async = require('async')
 
+// get Millsecond timestamp
+const getTS = () => {
+  const d = new Date()
+  return d.getTime()
+}
+
 /**
  * Monitors the changes feed (after calling .start()/.get()) and emits events
  *  - 'change' - per change
@@ -44,6 +50,7 @@ class ChangesReader {
   // - since - the the sequence token to start from (defaults to 'now')
   start (opts) {
     const self = this
+    let lastReqTS
 
     // if we're already listening for changes
     if (self.started) {
@@ -73,7 +80,10 @@ class ChangesReader {
       Object.assign(req.qs, opts.qs)
 
       // make HTTP request to get up to batchSize changes from the feed
+      lastReqTS = getTS()
       self.request(req).then((data) => {
+        const timeSinceLastReq = getTS() - lastReqTS
+
         // and we have some results
         if (data && data.results && data.results.length > 0) {
           // emit 'change' events
@@ -104,13 +114,23 @@ class ChangesReader {
               next()
             })
           } else {
-            next()
+            if (timeSinceLastReq > self.timeout) {
+              next()
+            } else {
+              setTimeout(next, self.timeout - timeSinceLastReq)
+            }
           }
         } else {
           if (data && data.results && data.results.length > 0) {
             self.ee.emit('batch', data.results)
+            next()
+          } else {
+            if (timeSinceLastReq > self.timeout) {
+              next()
+            } else {
+              setTimeout(next, self.timeout - timeSinceLastReq)
+            }
           }
-          next()
         }
       }).catch((err) => {
         // error (wrong password, bad since value etc)
