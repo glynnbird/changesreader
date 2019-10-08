@@ -191,7 +191,10 @@ class ChangesReader {
       .pipe(lin)
       .pipe(cp)
       .on('finish', (lastSeq) => {
-        self.ee.emit('end', cp.lastSeq)
+        // the 'end' event was triggering before the last data event
+        setTimeout(() => {
+          self.ee.emit('end', cp.lastSeq)
+        }, 10)
       })
       .on('error', (e) => {
         self.ee.emit('error', e)
