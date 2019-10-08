@@ -5,8 +5,8 @@ const Nano = require('nano')
 const request = require('request')
 const ME = process.env.cloudant_username || 'nodejs'
 const PASSWORD = process.env.cloudant_password || 'sjedon'
-const SERVER = `https://myhost.couchdb.com`
-const DBNAME = `changesreader`
+const SERVER = 'https://myhost.couchdb.com'
+const DBNAME = 'changesreader'
 const URL = `https://${ME}:${PASSWORD}@myhost.couchdb.com`
 const ChangesReader = require('../index.js')
 
@@ -140,7 +140,7 @@ describe('ChangesReader', function () {
       var replyObj = JSON.parse(reply)
       nock(SERVER)
         .get(changeURL)
-        .query({ since: '0', include_docs: false })
+        .query({ since: '0', include_docs: false, seq_interval: 100 })
         .reply(200, reply)
       const nano = Nano(URL)
       const changesReader = new ChangesReader(DBNAME, nano.request)
@@ -148,7 +148,7 @@ describe('ChangesReader', function () {
       cr.on('batch', function (batch) {
         assert.strictEqual(JSON.stringify(batch), JSON.stringify(replyObj.results))
       }).on('end', (lastSeq) => {
-        assert.strictEqual(lastSeq, replyObj['last_seq'])
+        assert.strictEqual(lastSeq, replyObj.last_seq)
         done()
       })
     })

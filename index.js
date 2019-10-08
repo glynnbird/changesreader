@@ -180,7 +180,8 @@ class ChangesReader {
       path: encodeURIComponent(self.db) + '/_changes',
       qs: {
         since: self.since,
-        include_docs: self.includeDocs
+        include_docs: self.includeDocs,
+        seq_interval: self.batchSize
       },
       stream: true
     }
