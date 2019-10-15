@@ -100,13 +100,10 @@ class ChangesReader {
 
         // stop on empty batch or small batch
         if (self.stopOnEmptyChanges && data && typeof data.results !== 'undefined' && data.results.length < self.batchSize) {
-          // emit 'end' event if we are in 'get' mode
-          self.ee.emit('end', self.since)
           self.continue = false
         }
 
         // batch event
-
         // emit 'batch' event
         if (self.wait) {
           if (data && data.results && data.results.length > 0) {
@@ -125,6 +122,9 @@ class ChangesReader {
             self.ee.emit('batch', data.results)
             next()
           } else {
+            if (!self.continue) {
+              return next()
+            }
             if (timeSinceLastReq > self.timeout) {
               next()
             } else {
@@ -152,6 +152,7 @@ class ChangesReader {
     },
     () => {
       // reset
+      self.ee.emit('end', self.since)
       self.setDefaults()
     })
 
