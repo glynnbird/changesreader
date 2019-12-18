@@ -1,6 +1,6 @@
 {
   "name": "changesreader",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "Simple CouchDB changes feed follower",
   "main": "index.js",
   "scripts": {
@@ -23,9 +23,9 @@
   },
   "homepage": "https://github.com/glynnbird/changesreader#readme",
   "devDependencies": {
-    "mocha": "^6.2.1",
+    "mocha": "^6.2.2",
     "nano": "^8.1.0",
-    "nock": "^11.4.0",
+    "nock": "^11.7.0",
     "request": "^2.88.0",
     "standard": "^14.3.1"
   },

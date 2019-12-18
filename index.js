@@ -29,6 +29,7 @@ class ChangesReader {
   setDefaults () {
     this.ee = new EventEmitter()
     this.batchSize = 100
+    this.fastChanges = false
     this.since = 'now'
     this.includeDocs = false
     this.timeout = 60000
@@ -76,6 +77,9 @@ class ChangesReader {
           limit: self.batchSize,
           include_docs: self.includeDocs
         }
+      }
+      if (self.fastChanges) {
+        req.qs.seq_interval = self.batchSize
       }
       Object.assign(req.qs, opts.qs)
 

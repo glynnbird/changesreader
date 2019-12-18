@@ -58,7 +58,7 @@ changesReader.get().on('change', (c) => {
 By supplying `wait:true` in the options to `get`, then your code can rate-limit the rate of changes feed polling, by only calling the `on('batch')` callback when ready.
 
 ```js
-changesReader.get().on('change', (c) => {
+changesReader.get({wait: true}).on('change', (c) => {
   console.log('change', c);
 }).on('batch', (b, callback) => {
   console.log('a batch of', b.length, 'changes has arrived');
@@ -95,6 +95,7 @@ changesReader.spool().on('batch', (b) => {
 | since     | The position in the changes feed to start from where `0` means the beginning of time, `now` means the current position or a string token indicates a fixed position in the changes feed | now           | 390768-g1AAAAGveJzLYWBgYMlgTmGQ |   |
 | includeDocs | Whether to include document bodies or not | false | e.g. true |
 | wait | Got `get`/`start` mode, only processes requests the next batch of changes when the calling code indicates it's ready with a callback  | false | e.g. true |
+| fastChanges | Adds a seq_interval parameter to fetch changes more quickly | false           | true                             |   |
 
 To consume the changes feed of a large database from the beginning, you may want to increase the `batchSize` e.g. `{ batchSize: 10000, since:0}`. 
 
