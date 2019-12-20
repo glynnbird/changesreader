@@ -39,6 +39,7 @@ class ChangesReader {
     this.stopOnEmptyChanges = false // whether to stop polling if we get an empty set of changes back
     this.continue = true // whether to poll again
     this.qs = {} // extra querystring parameters
+    this.selector = null
   }
 
   // prevent another poll happening
@@ -68,7 +69,7 @@ class ChangesReader {
     async.doWhilst((next) => {
       // formulate changes feed longpoll HTTP request
       const req = {
-        method: 'get',
+        method: 'post',
         path: encodeURIComponent(self.db) + '/_changes',
         qs: {
           feed: 'longpoll',
@@ -76,10 +77,15 @@ class ChangesReader {
           since: self.since,
           limit: self.batchSize,
           include_docs: self.includeDocs
-        }
+        },
+        body: {}
       }
       if (self.fastChanges) {
         req.qs.seq_interval = self.batchSize
+      }
+      if (self.selector) {
+        req.qs.filter = '_selector'
+        req.body.selector = self.selector
       }
       Object.assign(req.qs, opts.qs)
 
@@ -181,7 +187,7 @@ class ChangesReader {
     opts = opts || {}
     Object.assign(self, opts)
     const req = {
-      method: 'get',
+      method: 'post',
       path: encodeURIComponent(self.db) + '/_changes',
       qs: {
         since: self.since,
@@ -189,6 +195,10 @@ class ChangesReader {
         seq_interval: self.batchSize
       },
       stream: true
+    }
+    if (self.selector) {
+      req.qs.filter = '_selector'
+      req.body.selector = self.selector
     }
     const lin = liner()
     const cp = changeProcessor(self.ee, self.batchSize)

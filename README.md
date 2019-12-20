@@ -96,6 +96,7 @@ changesReader.spool().on('batch', (b) => {
 | includeDocs | Whether to include document bodies or not | false | e.g. true |
 | wait | Got `get`/`start` mode, only processes requests the next batch of changes when the calling code indicates it's ready with a callback  | false | e.g. true |
 | fastChanges | Adds a seq_interval parameter to fetch changes more quickly | false           | true                             |   |
+| selector | Filters the changes feed with the supplied Mango selector | {"name":"fred}           | null                             |   |
 
 To consume the changes feed of a large database from the beginning, you may want to increase the `batchSize` e.g. `{ batchSize: 10000, since:0}`. 
 

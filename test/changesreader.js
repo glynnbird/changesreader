@@ -55,15 +55,55 @@ describe('ChangesReader', function () {
     it('one poll no changes', function (done) {
       var changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
       const changesReader = new ChangesReader(DBNAME, nano.request)
       const cr = changesReader.start()
+      cr.on('seq', function (seq) {
+        // after our initial call with since=now, we should get a reply with last_seq=0-1
+        assert.strictEqual(seq, '1-0')
+        changesReader.stop()
+        done()
+      })
+    })
+
+    it('one poll no changes - fast changes', function (done) {
+      var changeURL = `/${DBNAME}/_changes`
+      nock(SERVER)
+        .post(changeURL)
+        .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false, seq_interval: 100 })
+        .reply(200, { results: [], last_seq: '1-0', pending: 0 })
+        .post(changeURL)
+        .delay(2000)
+        .reply(500)
+      const nano = Nano(URL)
+      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const cr = changesReader.start({ fastChanges: true })
+      cr.on('seq', function (seq) {
+        // after our initial call with since=now, we should get a reply with last_seq=0-1
+        assert.strictEqual(seq, '1-0')
+        changesReader.stop()
+        done()
+      })
+    })
+
+    it('one poll no changes with selector', function (done) {
+      var changeURL = `/${DBNAME}/_changes`
+      nock(SERVER)
+        .post(changeURL)
+        .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false, filter: '_selector' })
+        .reply(200, { results: [], last_seq: '1-0', pending: 0 })
+        .post(changeURL)
+        .delay(2000)
+        .reply(500)
+      const nano = Nano(URL)
+      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const cr = changesReader.start({ selector: { name: 'fred' } })
       cr.on('seq', function (seq) {
         // after our initial call with since=now, we should get a reply with last_seq=0-1
         assert.strictEqual(seq, '1-0')
@@ -80,10 +120,10 @@ describe('ChangesReader', function () {
         { seq: null, id: '4', changes: ['1-1'] },
         { seq: null, id: '5', changes: ['1-1'] }]
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: changes, last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
 
@@ -108,16 +148,16 @@ describe('ChangesReader', function () {
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '2-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
@@ -139,7 +179,7 @@ describe('ChangesReader', function () {
       var reply = fs.readFileSync('./test/changes.json')
       var replyObj = JSON.parse(reply)
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ since: '0', include_docs: false, seq_interval: 100 })
         .reply(200, reply)
       const nano = Nano(URL)
@@ -159,10 +199,10 @@ describe('ChangesReader', function () {
       var changeURL = `/${DBNAME}/_changes`
       var limit = 44
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: limit, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
@@ -181,10 +221,10 @@ describe('ChangesReader', function () {
       var limit = 44
       var since = 'thedawnoftime'
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: since, limit: limit, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
@@ -205,10 +245,10 @@ describe('ChangesReader', function () {
       var since = 'thedawnoftime'
       var batchSize = 45
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: since, limit: batchSize, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
@@ -235,10 +275,10 @@ describe('ChangesReader', function () {
         batch2.push({ seq: (45 + i + 1) + '-0', id: 'b' + i, changes: ['1-1'] })
       }
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: since, limit: batchSize, include_docs: false })
         .reply(200, { results: batch1, last_seq: '45-0', pending: 2 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: '45-0', limit: batchSize, include_docs: false })
         .reply(200, { results: batch2, last_seq: '50-0', pending: 0 })
       const nano = Nano(URL)
@@ -271,13 +311,13 @@ describe('ChangesReader', function () {
         batch2.push({ seq: null, id: 'b' + i, changes: ['1-1'] })
       }
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: since, limit: batchSize, include_docs: false })
         .reply(200, { results: batch1, last_seq: '45-0', pending: 2 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: '45-0', limit: batchSize, include_docs: false })
         .reply(200, { results: batch2, last_seq: '90-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: '90-0', limit: batchSize, include_docs: false })
         .reply(200, { results: [], last_seq: '90-0', pending: 0 })
       const nano = Nano(URL)
@@ -301,7 +341,7 @@ describe('ChangesReader', function () {
     it('on bad credentials', function (done) {
       var changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
         .reply(401)
       const nano = Nano(URL)
@@ -316,7 +356,7 @@ describe('ChangesReader', function () {
     it('on bad since value', function (done) {
       var changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'badtoken', limit: 100, include_docs: false })
         .reply(400, { error: 'bad_request', reason: 'Malformed sequence supplied in \'since\' parameter.' })
       const nano = Nano(URL)
@@ -335,16 +375,16 @@ describe('ChangesReader', function () {
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(500)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '2-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
@@ -365,16 +405,16 @@ describe('ChangesReader', function () {
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(429, { error: 'too_many_requests', reason: 'You\'ve exceeded your current limit of x requests per second for x class. Please try later.', class: 'x', rate: 1 })
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: '1-0', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '2-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
@@ -395,13 +435,13 @@ describe('ChangesReader', function () {
       var changeURL = `/${DBNAME}/_changes`
       var change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, '{ results: [], last_seq: "1-0", pending: 0') // missing bracket } - malformed JSON
-        .get(changeURL)
+        .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
         .reply(200, { results: [change], last_seq: '1-0', pending: 0 })
-        .get(changeURL)
+        .post(changeURL)
         .delay(2000)
         .reply(500)
       const nano = Nano(URL)
