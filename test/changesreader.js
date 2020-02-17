@@ -1,8 +1,6 @@
-/* global describe it before after afterEach */
+/* global describe it afterEach */
 const assert = require('assert')
 const nock = require('nock')
-const Nano = require('nano')
-const request = require('request')
 const ME = process.env.cloudant_username || 'nodejs'
 const PASSWORD = process.env.cloudant_password || 'sjedon'
 const SERVER = 'https://myhost.couchdb.com'
@@ -15,42 +13,6 @@ describe('ChangesReader', function () {
     nock.cleanAll()
   })
 
-  before(function (done) {
-    const mocks = nock(SERVER)
-      .put(`/${DBNAME}`)
-      .reply(201, { ok: true })
-
-    const options = {
-      url: `${SERVER}/${DBNAME}`,
-      auth: { username: ME, password: PASSWORD },
-      method: 'PUT'
-    }
-    request(options, function (err, resp) {
-      assert.strictEqual(err, null)
-      assert.strictEqual(resp.statusCode, 201)
-      mocks.done()
-      done()
-    })
-  })
-
-  after(function (done) {
-    var mocks = nock(SERVER)
-      .delete(`/${DBNAME}`)
-      .reply(200, { ok: true })
-
-    const options = {
-      url: `${SERVER}/${DBNAME}`,
-      auth: { username: ME, password: PASSWORD },
-      method: 'DELETE'
-    }
-    request(options, function (err, resp) {
-      assert.strictEqual(err, null)
-      assert.strictEqual(resp.statusCode, 200)
-      mocks.done()
-      done()
-    })
-  })
-
   describe('polling', function () {
     it('one poll no changes', function (done) {
       var changeURL = `/${DBNAME}/_changes`
@@ -61,8 +23,7 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start()
       cr.on('seq', function (seq) {
         // after our initial call with since=now, we should get a reply with last_seq=0-1
@@ -81,8 +42,7 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ fastChanges: true })
       cr.on('seq', function (seq) {
         // after our initial call with since=now, we should get a reply with last_seq=0-1
@@ -101,8 +61,7 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ selector: { name: 'fred' } })
       cr.on('seq', function (seq) {
         // after our initial call with since=now, we should get a reply with last_seq=0-1
@@ -127,8 +86,7 @@ describe('ChangesReader', function () {
         .delay(2000)
         .reply(500)
 
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start()
       var i = 0
       cr.on('change', function (c) {
@@ -160,8 +118,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         // ensure we get a change on the third poll
@@ -182,8 +140,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .query({ since: '0', include_docs: false, seq_interval: 100 })
         .reply(200, reply)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.spool({ since: 0 })
       cr.on('batch', function (batch) {
         assert.strictEqual(JSON.stringify(batch), JSON.stringify(replyObj.results))
@@ -205,8 +163,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ batchSize: limit })
       cr.on('seq', function (seq) {
         // after our initial call with since=now, we should get a reply with last_seq=0-1
@@ -227,8 +185,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ batchSize: limit, since: since })
       cr.on('seq', function (seq) {
         // after our initial call with since=now, we should get a reply with last_seq=0-1
@@ -251,8 +209,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.get({ batchSize: batchSize, since: since })
       cr.on('seq', function (seq) {
         // after our initial call with since=now, we should get a reply with last_seq=0-1
@@ -281,8 +239,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: '45-0', limit: batchSize, include_docs: false })
         .reply(200, { results: batch2, last_seq: '50-0', pending: 0 })
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.get({ batchSize: batchSize, since: since })
       var batchCount = 0
       cr.on('seq', function (seq) {
@@ -320,8 +278,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: '90-0', limit: batchSize, include_docs: false })
         .reply(200, { results: [], last_seq: '90-0', pending: 0 })
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.get({ batchSize: batchSize, since: since })
       var batchCount = 0
       cr.on('seq', function (seq) {
@@ -344,8 +302,7 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
         .reply(401)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start()
       cr.on('error', function (err) {
         assert.strictEqual(err.statusCode, 401)
@@ -359,8 +316,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'badtoken', limit: 100, include_docs: false })
         .reply(400, { error: 'bad_request', reason: 'Malformed sequence supplied in \'since\' parameter.' })
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ since: 'badtoken' })
       cr.on('error', function (err) {
         assert.strictEqual(err.statusCode, 400)
@@ -387,8 +344,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         // ensure we get a change on the third poll
@@ -417,8 +374,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         // ensure we get a change on the third poll
@@ -444,8 +401,8 @@ describe('ChangesReader', function () {
         .post(changeURL)
         .delay(2000)
         .reply(500)
-      const nano = Nano(URL)
-      const changesReader = new ChangesReader(DBNAME, nano.request)
+
+      const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start({ timeout: 1000 })
       cr.on('change', function (c) {
         assert.deepStrictEqual(c, change)

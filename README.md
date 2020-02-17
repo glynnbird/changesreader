@@ -11,26 +11,26 @@ The `ChangesReader` library hides the myriad of options that the CouchDB changes
 
 ## Listening to a changes feed indefinitely
 
-*ChangesReader* works in conjunction with the [Apache CouchDB Nano](https://www.npmjs.com/package/nano) library. Initialise the *ChangesReader* with the name of the database and the pre-configured Nano object - then call its `start` method to monitor the changes feed indefinitely:
+Initialise the *ChangesReader* with the name of the database and URL of your CouchDB service (includinh credentials, if required) - then call its `start` method to monitor the changes feed indefinitely:
 
 ```js
-const nano = require('nano')(MYURL);
 const ChangesReader = require('changesreader')
-const changesReader = new ChangesReader('mydatabase', nano.request)
+const cr = new ChangesReader('mydatabase', 'http://admin:admin@localhost:5984')
 ```
 
-The object returned from `start()` emits events when a change occurs:
+The object oreturned from `start()` emits events when a change occurs:
 
 ```js
-changesReader.start().on('change', (c) => {
-  console.log('change', c);
-}).on('batch', (b) => {
-  console.log('a batch of', b.length, 'changes has arrived');
-}).on('seq', (s) => {
-  console.log('sequence token', s);
-}).on('error', (e) => {
-  console.error('error', e);
-});
+cr.start()
+  .on('change', (c) => {
+    console.log('change', c);
+  }).on('batch', (b) => {
+    console.log('a batch of', b.length, 'changes has arrived');
+  }).on('seq', (s) => {
+    console.log('sequence token', s);
+  }).on('error', (e) => {
+    console.error('error', e);
+  });
 ```
 
 Note: you probably want to monitor *either* the `change` or `batch` event, not both.
@@ -40,17 +40,18 @@ Note: you probably want to monitor *either* the `change` or `batch` event, not b
 Alternatively the `get()` method is available to monitor the changes feed until there are no more changes to consume, at which point an `end` event is emitted.
 
 ```js
-changesReader.get().on('change', (c) => {
-  console.log('change', c);
-}).on('batch', (b) => {
-  console.log('a batch of', b.length, 'changes has arrived');
-}).on('seq', (s) => {
-  console.log('sequence token', s);
-}).on('error', (e) => {
-  console.error('error', e);
-}).on('end', () => {
-  console.log('changes feed monitoring has stopped');
-});
+cr.get()
+  .on('change', (c) => {
+    console.log('change', c);
+  }).on('batch', (b) => {
+    console.log('a batch of', b.length, 'changes has arrived');
+  }).on('seq', (s) => {
+    console.log('sequence token', s);
+  }).on('error', (e) => {
+    console.error('error', e);
+  }).on('end', () => {
+    console.log('changes feed monitoring has stopped');
+  });
 ```
 
 ## Listening for changes with `wait=true`
@@ -58,19 +59,20 @@ changesReader.get().on('change', (c) => {
 By supplying `wait:true` in the options to `get`, then your code can rate-limit the rate of changes feed polling, by only calling the `on('batch')` callback when ready.
 
 ```js
-changesReader.get({wait: true}).on('change', (c) => {
-  console.log('change', c);
-}).on('batch', (b, callback) => {
-  console.log('a batch of', b.length, 'changes has arrived');
-  // callbackup when you are ready to poll for new changes
-  callback()
-}).on('seq', (s) => {
-  console.log('sequence token', s);
-}).on('error', (e) => {
-  console.error('error', e);
-}).on('end', () => {
-  console.log('changes feed monitoring has stopped');
-});
+changesReader.get({wait: true})
+  .on('change', (c) => {
+    console.log('change', c);
+  }).on('batch', (b, callback) => {
+    console.log('a batch of', b.length, 'changes has arrived');
+    // callbackup when you are ready to poll for new changes
+    callback()
+  }).on('seq', (s) => {
+    console.log('sequence token', s);
+  }).on('error', (e) => {
+    console.error('error', e);
+  }).on('end', () => {
+    console.log('changes feed monitoring has stopped');
+  });
 ```
 
 This allows you to process some asynchronous work safely without building up a back-log of unprocessed data.
@@ -80,11 +82,12 @@ This allows you to process some asynchronous work safely without building up a b
 Another option is  `spool()` which churns through the changes feed in one go. It only emits `batch` events and an `end` event when it finishes.
 
 ```js
-changesReader.spool().on('batch', (b) => {
-  console.log('a batch of', b.length, 'changes has arrived');
-}).on('end', () => {
-  console.log('changes feed monitoring has stopped');
-});
+ct.spool({ since: '0'})
+  .on('batch', (b) => {
+    console.log('a batch of', b.length, 'changes has arrived');
+  }).on('end', () => {
+    console.log('changes feed monitoring has stopped');
+  });
 ```
 
 ## Options
