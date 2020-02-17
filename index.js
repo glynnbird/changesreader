@@ -1,5 +1,6 @@
 const EventEmitter = require('events').EventEmitter
 const async = require('async')
+const axios = require('axios').default
 
 // get Millsecond timestamp
 const getTS = () => {
@@ -15,13 +16,13 @@ const getTS = () => {
  *  - 'error' - per 4xx error (except 429)
  *
  * @param {String} db - Name of the database.
- * @param {Object} request - The HTTP request object e.g nano.request
+ * @param {String} couchURL - The URL (including credentials of the CouchDB service)
  */
 class ChangesReader {
   // constructor
-  constructor (db, request) {
+  constructor (db, couchURL) {
     this.db = db
-    this.request = request
+    this.couchURL = couchURL
     this.setDefaults()
   }
 
@@ -69,29 +70,31 @@ class ChangesReader {
     async.doWhilst((next) => {
       // formulate changes feed longpoll HTTP request
       const req = {
+        baseURL: self.couchURL,
+        url: encodeURIComponent(self.db) + '/_changes',
         method: 'post',
-        path: encodeURIComponent(self.db) + '/_changes',
-        qs: {
+        params: {
           feed: 'longpoll',
           timeout: self.timeout,
           since: self.since,
           limit: self.batchSize,
           include_docs: self.includeDocs
         },
-        body: {}
+        data: {}
       }
       if (self.fastChanges) {
-        req.qs.seq_interval = self.batchSize
+        req.params.seq_interval = self.batchSize
       }
       if (self.selector) {
-        req.qs.filter = '_selector'
-        req.body.selector = self.selector
+        req.params.filter = '_selector'
+        req.data.selector = self.selector
       }
-      Object.assign(req.qs, opts.qs)
+      Object.assign(req.params, opts.qs)
 
       // make HTTP request to get up to batchSize changes from the feed
       lastReqTS = getTS()
-      self.request(req).then((data) => {
+      axios(req).then((response) => {
+        const data = response.data
         const timeSinceLastReq = getTS() - lastReqTS
 
         // and we have some results
@@ -144,6 +147,7 @@ class ChangesReader {
         }
       }).catch((err) => {
         // error (wrong password, bad since value etc)
+        err.statusCode = err.response.status
         self.ee.emit('error', err)
 
         // if the error is fatal
@@ -188,32 +192,37 @@ class ChangesReader {
     Object.assign(self, opts)
     const req = {
       method: 'post',
-      path: encodeURIComponent(self.db) + '/_changes',
-      qs: {
+      baseURL: self.couchURL,
+      url: encodeURIComponent(self.db) + '/_changes',
+      params: {
         since: self.since,
         include_docs: self.includeDocs,
         seq_interval: self.batchSize
       },
-      stream: true
+      responseType: 'stream',
+      data: {}
     }
     if (self.selector) {
-      req.qs.filter = '_selector'
-      req.body.selector = self.selector
+      req.params.filter = '_selector'
+      req.data.selector = self.selector
     }
     const lin = liner()
     const cp = changeProcessor(self.ee, self.batchSize)
-    self.request(req)
-      .pipe(lin)
-      .pipe(cp)
-      .on('finish', (lastSeq) => {
-        // the 'end' event was triggering before the last data event
-        setTimeout(() => {
-          self.ee.emit('end', cp.lastSeq)
-        }, 10)
-      })
-      .on('error', (e) => {
-        self.ee.emit('error', e)
-      })
+    axios(req).then((response) => {
+      response.data
+        .pipe(lin)
+        .pipe(cp)
+        .on('finish', (lastSeq) => {
+          // the 'end' event was triggering before the last data event
+          setTimeout(() => {
+            self.ee.emit('end', cp.lastSeq)
+          }, 10)
+        })
+        .on('error', (e) => {
+          self.ee.emit('error', e)
+        })
+    })
+
     return self.ee
   }
 }
