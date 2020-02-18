@@ -1,6 +1,7 @@
 const EventEmitter = require('events').EventEmitter
 const async = require('async')
 const axios = require('axios').default
+const pkg = require('./package.json')
 
 // get Millsecond timestamp
 const getTS = () => {
@@ -20,10 +21,14 @@ const getTS = () => {
  */
 class ChangesReader {
   // constructor
-  constructor (db, couchURL) {
+  constructor (db, couchURL, headers) {
     this.db = db
     this.couchURL = couchURL
     this.setDefaults()
+    const defaultHeaders = {
+      'user-agent': `${pkg.name}/${pkg.version} (Node.js ${process.version})`
+    }
+    this.headers = Object.assign(defaultHeaders, headers || {})
   }
 
   // set defaults
@@ -80,7 +85,8 @@ class ChangesReader {
           limit: self.batchSize,
           include_docs: self.includeDocs
         },
-        data: {}
+        data: {},
+        headers: this.headers
       }
       if (self.fastChanges) {
         req.params.seq_interval = self.batchSize
@@ -200,7 +206,8 @@ class ChangesReader {
         seq_interval: self.batchSize
       },
       responseType: 'stream',
-      data: {}
+      data: {},
+      headers: this.headers
     }
     if (self.selector) {
       req.params.filter = '_selector'
