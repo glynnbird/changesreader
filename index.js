@@ -153,7 +153,7 @@ class ChangesReader {
         }
       }).catch((err) => {
         // error (wrong password, bad since value etc)
-        err.statusCode = err.response.status
+        err.statusCode = (err.response && err.response.status) || 500
         self.ee.emit('error', err)
 
         // if the error is fatal
