@@ -28,7 +28,6 @@
     "standard": "^14.3.1"
   },
   "dependencies": {
-    "async": "^2.6.3",
     "axios": "^0.19.2"
   }
 }

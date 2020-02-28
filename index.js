@@ -1,5 +1,4 @@
 const EventEmitter = require('events').EventEmitter
-const async = require('async')
 const axios = require('axios').default
 const pkg = require('./package.json')
 
@@ -53,6 +52,13 @@ class ChangesReader {
     this.continue = false
   }
 
+  // sleep, promise style
+  async sleep (t) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => { resolve() }, t)
+    })
+  }
+
   // called to start listening to the changes feed. The opts object can contain:
   // - batchSize - the number of records to return per HTTP request
   // - since - the the sequence token to start from (defaults to 'now')
@@ -71,110 +77,113 @@ class ChangesReader {
     opts = opts || {}
     Object.assign(self, opts)
 
-    // monitor the changes feed forever
-    async.doWhilst((next) => {
-      // formulate changes feed longpoll HTTP request
-      const req = {
-        baseURL: self.couchURL,
-        url: encodeURIComponent(self.db) + '/_changes',
-        method: 'post',
-        params: {
-          feed: 'longpoll',
-          timeout: self.timeout,
-          since: self.since,
-          limit: self.batchSize,
-          include_docs: self.includeDocs
-        },
-        data: {},
-        headers: this.headers
-      }
-      if (self.fastChanges) {
-        req.params.seq_interval = self.batchSize
-      }
-      if (self.selector) {
-        req.params.filter = '_selector'
-        req.data.selector = self.selector
-      }
-      Object.assign(req.params, opts.qs)
-
-      // make HTTP request to get up to batchSize changes from the feed
-      lastReqTS = getTS()
-      axios(req).then((response) => {
-        const data = response.data
-        const timeSinceLastReq = getTS() - lastReqTS
-
-        // and we have some results
-        if (data && data.results && data.results.length > 0) {
-          // emit 'change' events
-          for (const i in data.results) {
-            self.ee.emit('change', data.results[i])
-          }
+    // the work function is async and runs in the background
+    // with a big do/while loop
+    const work = async () => {
+      do {
+        // formulate changes feed longpoll HTTP request
+        let pause = 0
+        const req = {
+          baseURL: self.couchURL,
+          url: encodeURIComponent(self.db) + '/_changes',
+          method: 'post',
+          params: {
+            feed: 'longpoll',
+            timeout: self.timeout,
+            since: self.since,
+            limit: self.batchSize,
+            include_docs: self.includeDocs
+          },
+          data: {},
+          headers: this.headers
         }
-
-        // update the since state
-        if (data && data.last_seq && data.last_seq !== self.since) {
-          self.since = data.last_seq
-          self.ee.emit('seq', self.since)
+        if (self.fastChanges) {
+          req.params.seq_interval = self.batchSize
         }
-
-        // stop on empty batch or small batch
-        if (self.stopOnEmptyChanges && data && typeof data.results !== 'undefined' && data.results.length < self.batchSize) {
-          self.continue = false
+        if (self.selector) {
+          req.params.filter = '_selector'
+          req.data.selector = self.selector
         }
+        Object.assign(req.params, opts.qs)
 
-        // batch event
-        // emit 'batch' event
-        if (self.wait) {
+        // make HTTP request to get up to batchSize changes from the feed
+        lastReqTS = getTS()
+        try {
+          const response = await axios(req)
+          const data = response.data
+          const timeSinceLastReq = getTS() - lastReqTS
+          pause = 0
+
+          // and we have some results
           if (data && data.results && data.results.length > 0) {
-            self.ee.emit('batch', data.results, () => {
-              next()
-            })
-          } else {
-            if (timeSinceLastReq > self.timeout) {
-              next()
-            } else {
-              setTimeout(next, self.timeout - timeSinceLastReq)
+            // emit 'change' events
+            for (const i in data.results) {
+              self.ee.emit('change', data.results[i])
             }
           }
-        } else {
-          if (data && data.results && data.results.length > 0) {
-            self.ee.emit('batch', data.results)
-            next()
-          } else {
-            if (!self.continue) {
-              return next()
-            }
-            if (timeSinceLastReq > self.timeout) {
-              next()
+
+          // update the since state
+          if (data && data.last_seq && data.last_seq !== self.since) {
+            self.since = data.last_seq
+            self.ee.emit('seq', self.since)
+          }
+
+          // stop on empty batch or small batch
+          if (self.stopOnEmptyChanges && data && typeof data.results !== 'undefined' && data.results.length < self.batchSize) {
+            self.continue = false
+          }
+
+          // batch event
+          // emit 'batch' event
+          if (self.wait) {
+            // in 'wait' mode, we need to wait until the user calls
+            // a 'done' function before issuing the next change request
+            if (data && data.results && data.results.length > 0) {
+              // wait for the caller to call 'done' before proceeding
+              await new Promise((resolve, reject) => {
+                self.ee.emit('batch', data.results, () => {
+                  resolve()
+                })
+              })
             } else {
-              setTimeout(next, self.timeout - timeSinceLastReq)
+              if (timeSinceLastReq <= self.timeout) {
+                pause = self.timeout - timeSinceLastReq
+              }
+            }
+          } else {
+            // when not in 'wait' mode, we can emit the results
+            // and continue immediately, unless there were zero results -
+            // we don't want to poll too quickly
+            if (data && data.results && data.results.length > 0) {
+              self.ee.emit('batch', data.results)
+            } else {
+              if (timeSinceLastReq <= self.timeout) {
+                pause = self.timeout - timeSinceLastReq
+              }
             }
           }
-        }
-      }).catch((err) => {
-        // error (wrong password, bad since value etc)
-        err.statusCode = (err.response && err.response.status) || 500
-        self.ee.emit('error', err)
+        } catch (err) {
+          // error (wrong password, bad since value etc)
+          err.statusCode = (err.response && err.response.status) || 500
 
-        // if the error is fatal
-        if (err && err.statusCode && err.statusCode >= 400 && err.statusCode !== 429 && err.statusCode < 500) {
-          self.continue = false
-          next(err.reason)
-        } else {
-          next()
+          // if the error is fatal
+          if (err && err.statusCode && err.statusCode >= 400 && err.statusCode !== 429 && err.statusCode < 500) {
+            self.continue = false
+          }
+          self.ee.emit('error', err)
         }
-      })
-    },
 
-    // function that decides if the doWhilst loop will continue to repeat
-    () => {
-      return self.continue
-    },
-    () => {
+        // pause before next request
+        if (self.continue && pause > 0) {
+          await self.sleep(pause)
+        }
+      } while (self.continue)
+
       // reset
       self.ee.emit('end', self.since)
       self.setDefaults()
-    })
+    }
+    work()
 
     // return the event emitter to the caller
     return self.ee
