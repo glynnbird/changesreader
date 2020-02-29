@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/glynnbird/changesreader#readme",
   "devDependencies": {
+    "@types/node": "^13.7.7",
     "mocha": "^7.1.0",
     "nock": "^12.0.1",
     "standard": "^14.3.1",
