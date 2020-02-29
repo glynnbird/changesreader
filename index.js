@@ -2,12 +2,6 @@ const EventEmitter = require('events').EventEmitter
 const axios = require('axios').default
 const pkg = require('./package.json')
 
-// get Millsecond timestamp
-const getTS = () => {
-  const d = new Date()
-  return d.getTime()
-}
-
 /**
  * Monitors the changes feed (after calling .start()/.get()) and emits events
  *  - 'change' - per change
@@ -17,6 +11,7 @@ const getTS = () => {
  *
  * @param {String} db - Name of the database.
  * @param {String} couchURL - The URL (including credentials of the CouchDB service)
+ * @param {Object} headers - HTTP headers (optional)
  */
 class ChangesReader {
   // constructor
@@ -38,7 +33,6 @@ class ChangesReader {
     this.since = 'now'
     this.includeDocs = false
     this.timeout = 60000
-    this.heartbeat = 5000
     this.started = false
     this.wait = false
     this.stopOnEmptyChanges = false // whether to stop polling if we get an empty set of changes back
@@ -64,7 +58,6 @@ class ChangesReader {
   // - since - the the sequence token to start from (defaults to 'now')
   start (opts) {
     const self = this
-    let lastReqTS
 
     // if we're already listening for changes
     if (self.started) {
@@ -107,20 +100,9 @@ class ChangesReader {
         Object.assign(req.params, opts.qs)
 
         // make HTTP request to get up to batchSize changes from the feed
-        lastReqTS = getTS()
         try {
           const response = await axios(req)
           const data = response.data
-          const timeSinceLastReq = getTS() - lastReqTS
-          pause = 0
-
-          // and we have some results
-          if (data && data.results && data.results.length > 0) {
-            // emit 'change' events
-            for (const i in data.results) {
-              self.ee.emit('change', data.results[i])
-            }
-          }
 
           // update the since state
           if (data && data.last_seq && data.last_seq !== self.since) {
@@ -133,33 +115,28 @@ class ChangesReader {
             self.continue = false
           }
 
-          // batch event
-          // emit 'batch' event
-          if (self.wait) {
-            // in 'wait' mode, we need to wait until the user calls
-            // a 'done' function before issuing the next change request
-            if (data && data.results && data.results.length > 0) {
-              // wait for the caller to call 'done' before proceeding
+          // if we have data
+          if (data && data.results && data.results.length > 0) {
+            // emit 'change' events
+            for (const i in data.results) {
+              self.ee.emit('change', data.results[i])
+            }
+
+            // batch event
+            // emit 'batch' event
+            if (self.wait) {
+              // in 'wait' mode, we need to wait until the user calls
+              // a 'done' function before issuing the next change request
               await new Promise((resolve, reject) => {
                 self.ee.emit('batch', data.results, () => {
                   resolve()
                 })
               })
             } else {
-              if (timeSinceLastReq <= self.timeout) {
-                pause = self.timeout - timeSinceLastReq
-              }
-            }
-          } else {
-            // when not in 'wait' mode, we can emit the results
-            // and continue immediately, unless there were zero results -
-            // we don't want to poll too quickly
-            if (data && data.results && data.results.length > 0) {
+              // when not in 'wait' mode, we can emit the results
+              // and continue immediately, unless there were zero results -
+              // we don't want to poll too quickly
               self.ee.emit('batch', data.results)
-            } else {
-              if (timeSinceLastReq <= self.timeout) {
-                pause = self.timeout - timeSinceLastReq
-              }
             }
           }
         } catch (err) {
@@ -169,13 +146,18 @@ class ChangesReader {
           // if the error is fatal
           if (err && err.statusCode && err.statusCode >= 400 && err.statusCode !== 429 && err.statusCode < 500) {
             self.continue = false
+          } else {
+            // don't immediately retry on error
+            pause = 5000
           }
+
           self.ee.emit('error', err)
         }
 
-        // pause before next request
+        // pause before next request?
         if (self.continue && pause > 0) {
           await self.sleep(pause)
+          pause = 0
         }
       } while (self.continue)
 
