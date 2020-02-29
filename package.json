@@ -4,7 +4,7 @@
   "description": "Simple CouchDB changes feed follower",
   "main": "index.js",
   "scripts": {
-    "test": "standard; mocha --exit",
+    "test": "standard && tsc --strict index.d.ts && mocha --exit",
     "standard": "standard --fix"
   },
   "repository": {
@@ -25,7 +25,8 @@
   "devDependencies": {
     "mocha": "^7.0.1",
     "nock": "^12.0.0",
-    "standard": "^14.3.1"
+    "standard": "^14.3.1",
+    "typescript": "^3.8.3"
   },
   "dependencies": {
     "axios": "^0.19.2"
