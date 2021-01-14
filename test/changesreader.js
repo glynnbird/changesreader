@@ -15,7 +15,7 @@ describe('ChangesReader', function () {
 
   describe('polling', function () {
     it('one poll no changes', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
+      const changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
@@ -34,7 +34,7 @@ describe('ChangesReader', function () {
     })
 
     it('one poll no changes - fast changes', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
+      const changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false, seq_interval: 100 })
@@ -53,7 +53,7 @@ describe('ChangesReader', function () {
     })
 
     it('one poll no changes with selector', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
+      const changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false, filter: '_selector' })
@@ -72,8 +72,8 @@ describe('ChangesReader', function () {
     })
 
     it('one poll multi changes', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
-      var changes = [{ seq: null, id: '1', changes: ['1-1'] },
+      const changeURL = `/${DBNAME}/_changes`
+      const changes = [{ seq: null, id: '1', changes: ['1-1'] },
         { seq: null, id: '2', changes: ['1-1'] },
         { seq: null, id: '3', changes: ['1-1'] },
         { seq: null, id: '4', changes: ['1-1'] },
@@ -88,7 +88,7 @@ describe('ChangesReader', function () {
 
       const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.start()
-      var i = 0
+      let i = 0
       cr.on('change', function (c) {
         assert.deepStrictEqual(c, changes[i++])
       }).on('batch', function (b) {
@@ -103,8 +103,8 @@ describe('ChangesReader', function () {
 
     it('multiple polls', function (done) {
       this.timeout(10000)
-      var changeURL = `/${DBNAME}/_changes`
-      var change = { seq: null, id: 'a', changes: ['1-1'] }
+      const changeURL = `/${DBNAME}/_changes`
+      const change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
@@ -132,10 +132,10 @@ describe('ChangesReader', function () {
 
   describe('spooling', function () {
     it('spooling changes', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
-      var fs = require('fs')
-      var reply = fs.readFileSync('./test/changes.json')
-      var replyObj = JSON.parse(reply)
+      const changeURL = `/${DBNAME}/_changes`
+      const fs = require('fs')
+      const reply = fs.readFileSync('./test/changes.json')
+      const replyObj = JSON.parse(reply)
       nock(SERVER)
         .post(changeURL)
         .query({ since: '0', include_docs: false, seq_interval: 100 })
@@ -154,8 +154,8 @@ describe('ChangesReader', function () {
 
   describe('parameters', function () {
     it('batchSize', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
-      var limit = 44
+      const changeURL = `/${DBNAME}/_changes`
+      const limit = 44
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: limit, include_docs: false })
@@ -175,9 +175,9 @@ describe('ChangesReader', function () {
     })
 
     it('since', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
-      var limit = 44
-      var since = 'thedawnoftime'
+      const changeURL = `/${DBNAME}/_changes`
+      const limit = 44
+      const since = 'thedawnoftime'
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: since, limit: limit, include_docs: false })
@@ -199,9 +199,9 @@ describe('ChangesReader', function () {
 
   describe('stopOnEmptyChanges', function () {
     it('stop on no changes', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
-      var since = 'thedawnoftime'
-      var batchSize = 45
+      const changeURL = `/${DBNAME}/_changes`
+      const since = 'thedawnoftime'
+      const batchSize = 45
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: since, limit: batchSize, include_docs: false })
@@ -221,12 +221,13 @@ describe('ChangesReader', function () {
     })
 
     it('stop after multiple batches - small batch stop', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
-      var since = 'now'
-      var batchSize = 45
-      var batch1 = []
-      var batch2 = []
-      for (var i = 0; i < batchSize; i++) {
+      let i
+      const changeURL = `/${DBNAME}/_changes`
+      const since = 'now'
+      const batchSize = 45
+      const batch1 = []
+      const batch2 = []
+      for (i = 0; i < batchSize; i++) {
         batch1.push({ seq: (i + 1) + '-0', id: 'a' + i, changes: ['1-1'] })
       }
       for (i = 0; i < 5; i++) {
@@ -242,7 +243,7 @@ describe('ChangesReader', function () {
 
       const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.get({ batchSize: batchSize, since: since })
-      var batchCount = 0
+      let batchCount = 0
       cr.on('seq', function (seq) {
         if (batchCount === 0) {
           assert.strictEqual(seq, '45-0')
@@ -257,12 +258,13 @@ describe('ChangesReader', function () {
     })
 
     it('stop after multiple batches - zero stop', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
-      var since = 'now'
-      var batchSize = 45
-      var batch1 = []
-      var batch2 = []
-      for (var i = 0; i < batchSize; i++) {
+      let i
+      const changeURL = `/${DBNAME}/_changes`
+      const since = 'now'
+      const batchSize = 45
+      const batch1 = []
+      const batch2 = []
+      for (i = 0; i < batchSize; i++) {
         batch1.push({ seq: null, id: 'a' + i, changes: ['1-1'] })
       }
       for (i = 0; i < 5; i++) {
@@ -281,7 +283,7 @@ describe('ChangesReader', function () {
 
       const changesReader = new ChangesReader(DBNAME, URL)
       const cr = changesReader.get({ batchSize: batchSize, since: since })
-      var batchCount = 0
+      let batchCount = 0
       cr.on('seq', function (seq) {
         if (batchCount === 0) {
           assert.strictEqual(seq, '45-0')
@@ -297,7 +299,7 @@ describe('ChangesReader', function () {
 
   describe('errors', function () {
     it('on bad credentials', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
+      const changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'now', limit: 100, include_docs: false })
@@ -311,7 +313,7 @@ describe('ChangesReader', function () {
     })
 
     it('on bad since value', function (done) {
-      var changeURL = `/${DBNAME}/_changes`
+      const changeURL = `/${DBNAME}/_changes`
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 60000, since: 'badtoken', limit: 100, include_docs: false })
@@ -329,8 +331,8 @@ describe('ChangesReader', function () {
   describe('survival', function () {
     it('survives 500', function (done) {
       this.timeout(10000)
-      var changeURL = `/${DBNAME}/_changes`
-      var change = { seq: null, id: 'a', changes: ['1-1'] }
+      const changeURL = `/${DBNAME}/_changes`
+      const change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
@@ -359,8 +361,8 @@ describe('ChangesReader', function () {
 
     it('survives 429', function (done) {
       this.timeout(10000)
-      var changeURL = `/${DBNAME}/_changes`
-      var change = { seq: null, id: 'a', changes: ['1-1'] }
+      const changeURL = `/${DBNAME}/_changes`
+      const change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
@@ -389,8 +391,8 @@ describe('ChangesReader', function () {
 
     it('survives malformed JSON', function (done) {
       this.timeout(10000)
-      var changeURL = `/${DBNAME}/_changes`
-      var change = { seq: null, id: 'a', changes: ['1-1'] }
+      const changeURL = `/${DBNAME}/_changes`
+      const change = { seq: null, id: 'a', changes: ['1-1'] }
       nock(SERVER)
         .post(changeURL)
         .query({ feed: 'longpoll', timeout: 1000, since: 'now', limit: 100, include_docs: false })
